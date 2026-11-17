@@ -5,6 +5,7 @@ async function readEntry(entry, fileList) {
     if (entry.isFile) {
         return new Promise((resolve) => {
             entry.file((file) => {
+                file.customPath = entry.fullPath ? entry.fullPath.replace(/^\/+/, '') : file.name;
                 fileList.push(file);
                 resolve();
             }, () => resolve());
@@ -28,39 +29,39 @@ async function readEntry(entry, fileList) {
 }
 
 const EXT_COLORS = {
-    '.js': {bg: '#3b3200', color: '#f0c000'},
-    '.jsx': {bg: '#3b3200', color: '#f0c000'},
-    '.ts': {bg: '#003060', color: '#4db8ff'},
-    '.tsx': {bg: '#003060', color: '#4db8ff'},
-    '.py': {bg: '#003a30', color: '#3ecf8e'},
-    '.java': {bg: '#1a3300', color: '#7ecf00'},
-    '.kt': {bg: '#2a0040', color: '#c080ff'},
-    '.swift': {bg: '#3d1400', color: '#ff6a30'},
-    '.go': {bg: '#003040', color: '#00bcd4'},
-    '.rs': {bg: '#3d1a00', color: '#ff8c42'},
-    '.cpp': {bg: '#002040', color: '#4488ff'},
-    '.c': {bg: '#002040', color: '#4488ff'},
-    '.cs': {bg: '#1a0040', color: '#a070ff'},
-    '.php': {bg: '#2a0040', color: '#bd7aff'},
-    '.rb': {bg: '#3d0010', color: '#ff4466'},
-    '.html': {bg: '#3d1400', color: '#ff7043'},
-    '.css': {bg: '#002a3d', color: '#29b6f6'},
-    '.scss': {bg: '#2a002a', color: '#f48fb1'},
-    '.vue': {bg: '#003320', color: '#42d392'},
-    '.svelte': {bg: '#3d1a00', color: '#ff6600'},
-    '.json': {bg: '#1a1a00', color: '#d4c000'},
-    '.xml': {bg: '#1a2a00', color: '#aab800'},
-    '.yaml': {bg: '#001a2a', color: '#60a8ff'},
-    '.yml': {bg: '#001a2a', color: '#60a8ff'},
-    '.md': {bg: '#1a1a1a', color: '#aaaaaa'},
-    '.sh': {bg: '#002800', color: '#60d060'},
-    '.sql': {bg: '#002233', color: '#00bcd4'},
-    '.txt': {bg: '#1a1a1a', color: '#888888'},
-    '.docx': {bg: '#002040', color: '#4488ff'},
-    '.pdf': {bg: '#3d0010', color: '#ff4444'},
+    '.js': { bg: '#3b3200', color: '#f0c000' },
+    '.jsx': { bg: '#3b3200', color: '#f0c000' },
+    '.ts': { bg: '#003060', color: '#4db8ff' },
+    '.tsx': { bg: '#003060', color: '#4db8ff' },
+    '.py': { bg: '#003a30', color: '#3ecf8e' },
+    '.java': { bg: '#1a3300', color: '#7ecf00' },
+    '.kt': { bg: '#2a0040', color: '#c080ff' },
+    '.swift': { bg: '#3d1400', color: '#ff6a30' },
+    '.go': { bg: '#003040', color: '#00bcd4' },
+    '.rs': { bg: '#3d1a00', color: '#ff8c42' },
+    '.cpp': { bg: '#002040', color: '#4488ff' },
+    '.c': { bg: '#002040', color: '#4488ff' },
+    '.cs': { bg: '#1a0040', color: '#a070ff' },
+    '.php': { bg: '#2a0040', color: '#bd7aff' },
+    '.rb': { bg: '#3d0010', color: '#ff4466' },
+    '.html': { bg: '#3d1400', color: '#ff7043' },
+    '.css': { bg: '#002a3d', color: '#29b6f6' },
+    '.scss': { bg: '#2a002a', color: '#f48fb1' },
+    '.vue': { bg: '#003320', color: '#42d392' },
+    '.svelte': { bg: '#3d1a00', color: '#ff6600' },
+    '.json': { bg: '#1a1a00', color: '#d4c000' },
+    '.xml': { bg: '#1a2a00', color: '#aab800' },
+    '.yaml': { bg: '#001a2a', color: '#60a8ff' },
+    '.yml': { bg: '#001a2a', color: '#60a8ff' },
+    '.md': { bg: '#1a1a1a', color: '#aaaaaa' },
+    '.sh': { bg: '#002800', color: '#60d060' },
+    '.sql': { bg: '#002233', color: '#00bcd4' },
+    '.txt': { bg: '#1a1a1a', color: '#888888' },
+    '.docx': { bg: '#002040', color: '#4488ff' },
+    '.pdf': { bg: '#3d0010', color: '#ff4444' },
 };
 
-const DEFAULT_EXT_COLOR = {bg: '#1a1a2a', color: '#8888cc'};
+const DEFAULT_EXT_COLOR = { bg: '#1a1a2a', color: '#8888cc' };
 
 function loadData() {
     try {
@@ -70,15 +71,17 @@ function loadData() {
             document.getElementById('gap').value = settings.gap !== undefined ? settings.gap : "2";
             document.getElementById('outname').value = settings.outname !== undefined ? settings.outname : "combined.txt";
         }
-
         const savedFiles = JSON.parse(localStorage.getItem('fc_files'));
         if (savedFiles && Array.isArray(savedFiles)) {
-            files = savedFiles;
+            files = savedFiles.map(f => ({
+                ...f,
+                path: f.path || f.name
+            }));
             render();
-            if (files.length > 0) log(`// відновлено ${files.length} файл(ів) з попередньої сесії`, 'ok');
+            if (files.length > 0) log(`// відновлено ${files.length} файл(ів)`, 'ok');
         }
     } catch (e) {
-        console.warn("Помилка завантаження даних", e);
+        console.warn("Помилка завантаження", e);
     }
 }
 
@@ -92,8 +95,8 @@ function saveData() {
         localStorage.setItem('fc_settings', JSON.stringify(settings));
         localStorage.setItem('fc_files', JSON.stringify(files));
     } catch (e) {
-        console.warn("Не вдалося зберегти файли в localStorage", e);
-        log('// Увага: об\'єм файлів завеликий для збереження між сесіями!', 'warn');
+        console.warn("Помилка збереження в localStorage", e);
+        log('// помилка збереження: перевищено ліміт пам\'яті!', 'warn');
     }
 }
 
@@ -103,29 +106,24 @@ function resetToFactory(btn) {
     if (btn.dataset.confirm !== 'true') {
         btn.dataset.confirm = 'true';
         const originalText = btn.innerText;
-        btn.innerText = 'Впевнені? (Натисніть ще раз)';
+        btn.innerText = 'Підтвердити?';
         resetConfirmTimeout = setTimeout(() => {
             btn.dataset.confirm = 'false';
             btn.innerText = originalText;
         }, 3000);
         return;
     }
-
     clearTimeout(resetConfirmTimeout);
     btn.dataset.confirm = 'false';
     btn.innerText = 'Скинути до заводських';
-
     localStorage.removeItem('fc_settings');
     localStorage.removeItem('fc_files');
-
     files = [];
-
     document.getElementById('sep').value = "// ===== {filename} =====";
     document.getElementById('gap').value = "2";
     document.getElementById('outname').value = "combined.txt";
-
     render();
-    log('// всі налаштування та файли скинуто до заводських!', 'ok');
+    log('// налаштування та список скинуто!', 'ok');
 }
 
 document.getElementById('sep').addEventListener('input', saveData);
@@ -146,15 +144,12 @@ let isDeleting = false;
 function typeEffect() {
     const el = document.getElementById("typing-title");
     const currentWord = words[wordIndex];
-
     if (!isDeleting) {
         el.textContent = currentWord.substring(0, charIndex++);
     } else {
         el.textContent = currentWord.substring(0, charIndex--);
     }
-
     let speed = isDeleting ? 50 : 100;
-
     if (!isDeleting && charIndex === currentWord.length) {
         speed = 1500;
         isDeleting = true;
@@ -163,7 +158,6 @@ function typeEffect() {
         wordIndex = (wordIndex + 1) % words.length;
         speed = 100;
     }
-
     setTimeout(typeEffect, speed);
 }
 
@@ -230,8 +224,10 @@ document.addEventListener('paste', async e => {
             e.preventDefault();
             const now = new Date();
             const timeStr = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+            const clipName = `clipboard_${timeStr}.txt`;
             const newFile = {
-                name: `clipboard_${timeStr}.txt`,
+                name: clipName,
+                path: clipName,
                 size: new Blob([text]).size,
                 content: text
             };
@@ -240,18 +236,15 @@ document.addEventListener('paste', async e => {
     }
 });
 
-// Функція для витягування тексту з PDF
 async function extractPdfText(file) {
     if (!window.pdfjsLib) throw new Error("Бібліотека PDF.js не завантажена");
     const pdfjsLib = window.pdfjsLib;
     if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     }
-
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     let fullText = '';
-
     for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
@@ -264,14 +257,13 @@ async function extractPdfText(file) {
 async function extractDocxText(file) {
     if (!window.mammoth) throw new Error("Бібліотека Mammoth.js не завантажена");
     const arrayBuffer = await file.arrayBuffer();
-    const result = await mammoth.extractRawText({arrayBuffer: arrayBuffer});
+    const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
     return result.value.trim();
 }
 
 async function processNewFiles(rawFiles) {
-    log('// читаємо файли...', '');
+    log('// обробка файлів...', '');
     const processed = [];
-
     const BINARY_EXTS = [
         '.doc', '.xlsx', '.xls', '.pptx', '.ppt',
         '.zip', '.rar', '.7z', '.tar', '.gz',
@@ -281,31 +273,34 @@ async function processNewFiles(rawFiles) {
 
     for (const f of rawFiles) {
         const ext = '.' + f.name.split('.').pop().toLowerCase();
+        const relPath = f.customPath || f.webkitRelativePath || f.name;
 
         if (BINARY_EXTS.includes(ext)) {
-            log(`// пропущено непідтримуваний файл: ${f.name}`, 'err');
+            log(`// пропущено бінарний файл: ${relPath}`, 'err');
             continue;
         }
-
         try {
             let text = '';
             if (ext === '.pdf') {
-                log(`// парсимо PDF: ${f.name}...`, 'warn');
+                log(`// читання PDF: ${relPath}...`, 'warn');
                 text = await extractPdfText(f);
             } else if (ext === '.docx') {
-                log(`// парсимо DOCX: ${f.name}...`, 'warn');
+                log(`// читання DOCX: ${relPath}...`, 'warn');
                 text = await extractDocxText(f);
             } else {
                 text = await f.text();
             }
-
-            processed.push({name: f.name, size: f.size, content: text});
+            processed.push({
+                name: f.name,
+                path: relPath,
+                size: f.size,
+                content: text
+            });
         } catch (e) {
-            console.error("Помилка читання файлу:", f.name, e);
-            log(`// помилка при читанні ${f.name}`, 'err');
+            console.error("Помилка читання:", relPath, e);
+            log(`// помилка читання ${relPath}`, 'err');
         }
     }
-
     if (processed.length > 0) {
         addProcessedFiles(processed);
     }
@@ -315,27 +310,31 @@ function addProcessedFiles(newFiles) {
     const dupes = [];
     const added = [];
     const updated = [];
+
     newFiles.forEach(f => {
-        const existingIdx = files.findIndex(x => x.name === f.name);
+        const fPath = f.path || f.name;
+        const existingIdx = files.findIndex(x => (x.path || x.name) === fPath);
+
         if (existingIdx !== -1) {
             if (files[existingIdx].content === f.content) {
-                dupes.push(f.name);
+                dupes.push(fPath);
             } else {
                 files[existingIdx] = f;
-                updated.push(f.name);
+                updated.push(fPath);
             }
         } else {
             files.push(f);
-            added.push(f.name);
+            added.push(fPath);
         }
     });
+
     render();
     saveData();
 
     const parts = [];
     if (added.length) parts.push(`додано ${added.length} файл(ів)`);
     if (updated.length) parts.push(`оновлено ${updated.length} файл(ів): ${updated.join(', ')}`);
-    if (dupes.length) parts.push(`без змін (пропущено): ${dupes.join(', ')}`);
+    if (dupes.length) parts.push(`пропущено (без змін): ${dupes.join(', ')}`);
 
     if (updated.length || added.length) {
         log(`// ${parts.join(' | ')}. Всього: ${files.length}`, updated.length ? 'warn' : 'ok');
@@ -348,10 +347,9 @@ function removeFile(i, btn) {
     if (btn && btn.dataset.confirm !== 'true') {
         btn.dataset.confirm = 'true';
         btn.dataset.origText = btn.innerText;
-        btn.innerText = 'Впевнені?';
+        btn.innerText = '?';
         btn.style.color = 'var(--danger)';
         btn.style.background = 'var(--danger-bg)';
-
         btn.clearTimeoutId = setTimeout(() => {
             if (btn && btn.parentElement) {
                 btn.dataset.confirm = 'false';
@@ -362,7 +360,6 @@ function removeFile(i, btn) {
         }, 3000);
         return;
     }
-
     files.splice(i, 1);
     render();
     saveData();
@@ -372,8 +369,7 @@ function clearAll(btn) {
     if (btn && btn.dataset.confirm !== 'true') {
         btn.dataset.confirm = 'true';
         btn.dataset.origText = btn.innerText;
-        btn.innerText = 'Впевнені?';
-
+        btn.innerText = 'підтвердити?';
         btn.clearTimeoutId = setTimeout(() => {
             if (btn) {
                 btn.dataset.confirm = 'false';
@@ -382,13 +378,11 @@ function clearAll(btn) {
         }, 3000);
         return;
     }
-
     if (btn) {
         clearTimeout(btn.clearTimeoutId);
         btn.dataset.confirm = 'false';
         btn.innerText = btn.dataset.origText;
     }
-
     files = [];
     render();
     saveData();
@@ -396,7 +390,7 @@ function clearAll(btn) {
 }
 
 function sortFiles() {
-    files.sort((a, b) => a.name.localeCompare(b.name));
+    files.sort((a, b) => (a.path || a.name).localeCompare(b.path || b.name));
     render();
     saveData();
 }
@@ -435,50 +429,57 @@ function render() {
 
     const list = document.getElementById('file-list');
     if (!hasFiles) {
-        list.innerHTML = '<div class="empty-msg">// файли ще не додано</div>';
+        list.innerHTML = '<div class="empty-msg">// список порожній</div>';
         return;
     }
 
     list.innerHTML = '';
     files.forEach((f, i) => {
+        const fPath = f.path || f.name;
+        const dirPart = fPath !== f.name ? fPath.slice(0, fPath.length - f.name.length) : '';
+
         const row = document.createElement('div');
         row.className = 'file-row';
         row.draggable = true;
         row.dataset.idx = i;
-        row.title = "Подвійний клік щоб відкрити";
+        row.title = `${fPath} (подвійний клік — переглянути/редагувати)`;
 
         const ec = extColor(f.name);
         const e = getExt(f.name);
         const [sz, unit] = fmtSize(f.size);
 
         row.innerHTML = `
-      <span class="drag-handle">⠿</span>
-      <span class="file-idx">${i + 1}</span>
-      <span class="ext" style="background:${ec.bg};color:${ec.color}">${e}</span>
-      <span class="fname">${f.name}</span>
-      <span class="fsize">${sz} ${unit}</span>
-      <button class="rm" onclick="event.stopPropagation(); removeFile(${i}, this)">✕</button>
-    `;
+            <span class="drag-handle">⋮⋮</span>
+            <span class="file-idx">${i + 1}</span>
+            <span class="ext" style="background:${ec.bg};color:${ec.color}">${e}</span>
+            <span class="fname">${dirPart ? `<span style="color:var(--text-muted)">${dirPart}</span>` : ''}${f.name}</span>
+            <span class="fsize">${sz} ${unit}</span>
+            <button class="rm" onclick="event.stopPropagation(); removeFile(${i}, this)">✕</button>
+        `;
 
         row.addEventListener('dragstart', function (ev) {
             dragSrcIdx = parseInt(this.dataset.idx);
             ev.dataTransfer.effectAllowed = 'move';
             setTimeout(() => this.classList.add('dragging'), 0);
         });
+
         row.addEventListener('dragend', function () {
             this.classList.remove('dragging');
             document.querySelectorAll('.file-row').forEach(r => r.classList.remove('drag-target'));
             dragSrcIdx = null;
         });
+
         row.addEventListener('dragover', function (ev) {
             ev.preventDefault();
             ev.dataTransfer.dropEffect = 'move';
             document.querySelectorAll('.file-row').forEach(r => r.classList.remove('drag-target'));
             this.classList.add('drag-target');
         });
+
         row.addEventListener('dragleave', function () {
             this.classList.remove('drag-target');
         });
+
         row.addEventListener('drop', function (ev) {
             ev.preventDefault();
             ev.stopPropagation();
@@ -500,7 +501,6 @@ function render() {
         row.addEventListener('touchend', function (ev) {
             const currentTime = new Date().getTime();
             const tapLength = currentTime - lastTap;
-
             if (tapLength < 400 && tapLength > 0) {
                 openModal(i);
                 ev.preventDefault();
@@ -516,21 +516,18 @@ function openModal(index) {
     const file = files[index];
     const modal = document.getElementById('file-modal');
     const contentArea = document.getElementById('modal-content');
-
-    document.getElementById('modal-title').textContent = file.name;
+    document.getElementById('modal-title').textContent = file.path || file.name;
     contentArea.value = file.content;
-
     contentArea.oninput = (e) => {
         files[index].content = e.target.value;
         files[index].size = new Blob([e.target.value]).size;
         saveData();
         render();
     };
-
     modal.classList.add('active');
 }
 
-function closeModal(e) {
+function closeModal() {
     document.getElementById('file-modal').classList.remove('active');
     setTimeout(() => {
         document.getElementById('modal-content').value = '';
@@ -543,42 +540,36 @@ let copyBtnTimeout = null;
 async function copyModalContent() {
     const text = document.getElementById('modal-content').value;
     const copyBtn = document.getElementById('copy-modal-btn');
-
     try {
         await navigator.clipboard.writeText(text);
-        log('// вміст файлу скопійовано в буфер обміну', 'ok');
-
+        log('// скопійовано в буфер обміну', 'ok');
         if (copyBtn) {
             clearTimeout(copyBtnTimeout);
             copyBtn.disabled = true;
             copyBtn.innerHTML = '✓ Скопійовано';
-
             copyBtnTimeout = setTimeout(() => {
                 copyBtn.disabled = false;
-                copyBtn.textContent = 'Копіювати текст';
+                copyBtn.textContent = 'Копіювати';
             }, 1400);
         }
     } catch (err) {
-        log('// помилка копіювання в буфер', 'err');
+        log('// помилка копіювання', 'err');
     }
 }
 
 async function generate() {
     if (!files.length) {
-        log('// додай хоча б один файл', 'err');
+        log('// помилка: додайте хоча б один файл', 'err');
         return;
     }
-
     const btn = document.getElementById('go-btn');
     const prog = document.getElementById('prog');
     btn.disabled = true;
-    log('// збираємо файли…', '');
+    log('// генерація файлу...', '');
 
     const sepTpl = document.getElementById('sep').value;
     const gap = '\n'.repeat(Math.max(1, parseInt(document.getElementById('gap').value) || 2));
-    const format = 'txt';
     let outname = document.getElementById('outname').value || 'combined.txt';
-
     if (!outname.endsWith('.txt')) {
         outname = outname.replace(/\.\w+$/, '') + '.txt';
     }
@@ -587,36 +578,32 @@ async function generate() {
         const parts = [];
         for (let i = 0; i < files.length; i++) {
             const f = files[i];
+            const fPath = f.path || f.name;
             prog.style.width = ((i / files.length) * 100) + '%';
-
             const text = f.content;
-
             const sep = sepTpl
                 .replace(/{filename}/g, f.name)
+                .replace(/{path}/g, fPath)
                 .replace(/{index}/g, String(i + 1))
                 .replace(/{ext}/g, getExt(f.name));
             parts.push(sep + '\n\n' + text);
-            log(`// обробка: ${f.name} (${i + 1}/${files.length})`, '');
-
+            log(`// обробка: ${fPath} (${i + 1}/${files.length})`, '');
             await new Promise(r => setTimeout(r, 10));
         }
 
         prog.style.width = '100%';
         const result = parts.join(gap);
-
-        const blob = new Blob([result], {type: 'text/plain;charset=utf-8'});
-
+        const blob = new Blob([result], { type: 'text/plain;charset=utf-8' });
         const isSaved = await downloadBlob(blob, outname);
 
         if (isSaved) {
             const [sz, unit] = fmtSize(blob.size);
-            log(`// готово! ${files.length} файлів → ${outname} (${sz} ${unit})`, 'ok');
+            log(`// готово! ${files.length} файл(ів) зібрано у ${outname} (${sz} ${unit})`, 'ok');
         } else {
-            log('// збереження скасовано або перервано', 'warn');
+            log('// збереження скасовано', 'warn');
         }
-
     } catch (e) {
-        log('// помилка: ' + e.message, 'err');
+        log('// помилка генерації: ' + e.message, 'err');
     }
 
     btn.disabled = false;
@@ -632,7 +619,7 @@ async function downloadBlob(blob, filename) {
                 suggestedName: filename,
                 types: [{
                     description: 'Text Document',
-                    accept: {'text/plain': ['.txt']},
+                    accept: { 'text/plain': ['.txt'] },
                 }],
             });
             const writable = await handle.createWritable();
