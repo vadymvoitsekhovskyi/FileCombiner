@@ -5,7 +5,7 @@ async function readEntry(entry, fileList) {
     if (entry.isFile) {
         return new Promise((resolve) => {
             entry.file((file) => {
-                file.customPath = entry.fullPath ? entry.fullPath.replace(/^\/+/, '') : file.name;
+                file.customPath = entry.fullPath ? entry.fullPath.replace(/\\/g, '/').replace(/^\/+/, '') : file.name;
                 fileList.push(file);
                 resolve();
             }, () => resolve());
@@ -193,8 +193,14 @@ document.addEventListener('drop', async e => {
         const allFiles = [];
         const promises = [];
         for (const item of items) {
+            if (item.kind !== 'file') continue;
             const entry = item.webkitGetAsEntry();
-            if (entry) promises.push(readEntry(entry, allFiles));
+            if (entry) {
+                promises.push(readEntry(entry, allFiles));
+            } else {
+                const file = item.getAsFile();
+                if (file) allFiles.push(file);
+            }
         }
         await Promise.all(promises);
         await processNewFiles(allFiles);
@@ -215,10 +221,33 @@ folderInput.addEventListener('change', async () => {
 });
 
 document.addEventListener('paste', async e => {
-    if (e.clipboardData && e.clipboardData.files.length > 0) {
+    if (!e.clipboardData) return;
+
+    const items = e.clipboardData.items;
+    const hasFileItems = items && Array.from(items).some(item => item.kind === 'file');
+
+    if (hasFileItems) {
+        e.preventDefault();
+        const allFiles = [];
+        const promises = [];
+        for (const item of items) {
+            if (item.kind !== 'file') continue;
+            if (item.webkitGetAsEntry) {
+                const entry = item.webkitGetAsEntry();
+                if (entry) {
+                    promises.push(readEntry(entry, allFiles));
+                    continue;
+                }
+            }
+            const file = item.getAsFile();
+            if (file) allFiles.push(file);
+        }
+        await Promise.all(promises);
+        await processNewFiles(allFiles);
+    } else if (e.clipboardData.files && e.clipboardData.files.length > 0) {
         e.preventDefault();
         await processNewFiles([...e.clipboardData.files]);
-    } else if (e.clipboardData) {
+    } else {
         const text = e.clipboardData.getData('text');
         if (text && text.trim().length > 0) {
             e.preventDefault();
@@ -273,7 +302,7 @@ async function processNewFiles(rawFiles) {
 
     for (const f of rawFiles) {
         const ext = '.' + f.name.split('.').pop().toLowerCase();
-        const relPath = f.customPath || f.webkitRelativePath || f.name;
+        const relPath = (f.customPath || f.webkitRelativePath || f.name).replace(/\\/g, '/').replace(/^\/+/, '');
 
         if (BINARY_EXTS.includes(ext)) {
             log(`// пропущено бінарний файл: ${relPath}`, 'err');
@@ -313,18 +342,29 @@ function addProcessedFiles(newFiles) {
 
     newFiles.forEach(f => {
         const fPath = f.path || f.name;
-        const existingIdx = files.findIndex(x => (x.path || x.name) === fPath);
+        const hasDir = fPath.includes('/');
 
-        if (existingIdx !== -1) {
-            if (files[existingIdx].content === f.content) {
-                dupes.push(fPath);
+        if (hasDir) {
+            const existingIdx = files.findIndex(x => (x.path || x.name) === fPath);
+            if (existingIdx !== -1) {
+                if (files[existingIdx].content === f.content) {
+                    dupes.push(fPath);
+                } else {
+                    files[existingIdx] = f;
+                    updated.push(fPath);
+                }
             } else {
-                files[existingIdx] = f;
-                updated.push(fPath);
+                files.push(f);
+                added.push(fPath);
             }
         } else {
-            files.push(f);
-            added.push(fPath);
+            const isExactDuplicate = files.some(x => x.name === f.name && x.content === f.content);
+            if (isExactDuplicate) {
+                dupes.push(f.name);
+            } else {
+                files.push(f);
+                added.push(f.name);
+            }
         }
     });
 
